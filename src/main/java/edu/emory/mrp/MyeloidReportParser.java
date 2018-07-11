@@ -103,8 +103,8 @@ public class MyeloidReportParser {
                         }
                     }
                     if(section.equals("results")) {
-                        if     (line.startsWith("I. Tier 1")) { variantCategory = "Tier 1: Known significance"; }
-                        else if(line.startsWith("II. Tier 2")) { variantCategory = "Tier 2: Unknown significance"; }
+                        if     (line.startsWith("I. Tier 1"))                            { variantCategory = "Tier 1: Known significance"; }
+                        else if(line.startsWith("II. Tier 2"))                           { variantCategory = "Tier 2: Unknown significance"; }
                         else if(line.startsWith("III. Single Nucleotide Polymorphisms")) { variantCategory = "SNP with significance"; }
                         {
                             Pattern pattern = Pattern.compile("^[0-9]+\\. ([^ ]+) (c\\.[^ ]+), (p\\.[^ ]+) \\((NM_[0-9\\.]+)\\) Variant Frequency: ([0-9\\.]+)%");
