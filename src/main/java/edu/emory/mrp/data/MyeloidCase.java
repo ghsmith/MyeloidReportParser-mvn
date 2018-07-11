@@ -5,9 +5,7 @@ import java.util.List;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlRootElement
 public class MyeloidCase {
     @XmlAttribute
     public String patient;
@@ -26,4 +24,7 @@ public class MyeloidCase {
     @XmlElement(name="variant", type=Variant.class)
     @XmlElementWrapper(name="variants")    
     public List<Variant> variants = new ArrayList<>();
+    @XmlElement(name="reference", type=Reference.class)
+    @XmlElementWrapper(name="references")    
+    public List<Reference> references = new ArrayList<>();
 }
