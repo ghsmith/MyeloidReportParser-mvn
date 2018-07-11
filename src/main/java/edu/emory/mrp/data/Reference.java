@@ -5,7 +5,7 @@ import javax.xml.bind.annotation.XmlElement;
 
 public class Reference {
     @XmlAttribute
-    public String refNo;
+    public Integer refNo;
     @XmlAttribute
     public String pmid;
     @XmlElement
