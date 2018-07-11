@@ -144,7 +144,8 @@ public class MyeloidReportParser {
                     if(section.equals("references")) {
                         {
                             Pattern pattern1 = Pattern.compile("(^[0-9]+)\\.(.*) PubMed PMID: ([0-9]+)\\.");
-                            Pattern pattern2 = Pattern.compile("(^[0-9]+)\\.(.*)");
+                            Pattern pattern2 = Pattern.compile("(^[0-9]+)\\.(.*) PMID: ([0-9]+)\\.");
+                            Pattern pattern3 = Pattern.compile("(^[0-9]+)\\.(.*)");
                             Matcher matcher1 = pattern1.matcher(line);
                             if(matcher1.matches()) {
                                 Reference reference = new Reference();
@@ -159,7 +160,17 @@ public class MyeloidReportParser {
                                     Reference reference = new Reference();
                                     myeloidCase.references.add(reference);
                                     reference.refNo = matcher2.group(1);
+                                    reference.pmid = matcher2.group(3);
                                     reference.refName = matcher2.group(2).trim();
+                                }
+                                else {
+                                    Matcher matcher3 = pattern3.matcher(line);
+                                    if(matcher3.matches()) {
+                                        Reference reference = new Reference();
+                                        myeloidCase.references.add(reference);
+                                        reference.refNo = matcher3.group(1);
+                                        reference.refName = matcher3.group(2).trim();
+                                    }
                                 }
                             }
                         }
