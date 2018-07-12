@@ -3,6 +3,7 @@ package edu.emory.mrp;
 import edu.emory.mrp.data.MyeloidCase;
 import edu.emory.mrp.data.MyeloidCases;
 import edu.emory.mrp.data.Reference;
+import edu.emory.mrp.data.References;
 import edu.emory.mrp.data.Variant;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -23,7 +24,8 @@ public class MyeloidReportParser {
     public static void main(String[] args) throws IOException, JAXBException {
 
         MyeloidCases myeloidCases = new MyeloidCases();
-
+        References references = new References();
+        
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         String fileName;
         while((fileName = stdIn.readLine()) != null) {
@@ -112,6 +114,7 @@ public class MyeloidReportParser {
                                 if(matcher.matches()) {
                                     variant = new Variant();
                                     myeloidCase.variants.add(variant);
+                                    variant.myeloidCase = myeloidCase;
                                     variant.category = variantCategory;
                                     variant.gene = matcher.group(1);
                                     variant.hgvsc = matcher.group(2);
@@ -125,6 +128,7 @@ public class MyeloidReportParser {
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     variant = new Variant();
+                                    variant.myeloidCase = myeloidCase;
                                     myeloidCase.variants.add(variant);
                                     variant.category = variantCategory;
                                     variant.gene = matcher.group(1);
@@ -153,6 +157,13 @@ public class MyeloidReportParser {
                                     reference.refNo = new Integer(matcher1.group(1));
                                     reference.pmid = matcher1.group(3);
                                     reference.refName = matcher1.group(2).trim();
+                                    Reference globalReference = references.getReferenceMapByRefHash().get(reference.getRefHash());
+                                    if(globalReference == null) {
+                                        globalReference = new Reference();
+                                        globalReference.pmid = matcher1.group(3);
+                                        globalReference.refName = matcher1.group(2).trim();
+                                        references.reference.add(globalReference);
+                                    }
                                 }
                                 else {
                                     Matcher matcher2 = pattern2.matcher(line);
@@ -162,6 +173,13 @@ public class MyeloidReportParser {
                                         reference.refNo = new Integer(matcher2.group(1));
                                         reference.pmid = matcher2.group(3);
                                         reference.refName = matcher2.group(2).trim();
+                                        Reference globalReference = references.getReferenceMapByRefHash().get(reference.getRefHash());
+                                        if(globalReference == null) {
+                                            globalReference = new Reference();
+                                            globalReference.pmid = matcher2.group(3);
+                                            globalReference.refName = matcher2.group(2).trim();
+                                            references.reference.add(globalReference);
+                                        }
                                     }
                                     else {
                                         Matcher matcher3 = pattern3.matcher(line);
@@ -170,6 +188,12 @@ public class MyeloidReportParser {
                                             myeloidCase.references.add(reference);
                                             reference.refNo = new Integer(matcher3.group(1));
                                             reference.refName = matcher3.group(2).trim();
+                                            Reference globalReference = references.getReferenceMapByRefHash().get(reference.getRefHash());
+                                            if(globalReference == null) {
+                                                globalReference = new Reference();
+                                                globalReference.refName = matcher3.group(2).trim();
+                                                references.reference.add(globalReference);
+                                            }
                                         }
                                     }
                                 }
@@ -192,10 +216,14 @@ public class MyeloidReportParser {
                                 if(refNoRange.contains("-")) {
                                     for(int refNo = new Integer(refNoRange.split("-")[0]); refNo <= new Integer(refNoRange.split("-")[1]); refNo++) {
                                         variant.refNos.add(refNo);
+                                        myeloidCase.getReferenceMapByRefNo().get(refNo).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
+                                        references.getReferenceMapByRefHash().get(myeloidCase.getReferenceMapByRefNo().get(refNo).getRefHash()).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
                                     }
                                 }
                                 else {
                                     variant.refNos.add(new Integer(refNoRange));
+                                    myeloidCase.getReferenceMapByRefNo().get(new Integer(refNoRange)).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
+                                    references.getReferenceMapByRefHash().get(myeloidCase.getReferenceMapByRefNo().get(new Integer(refNoRange)).getRefHash()).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
                                 }
                             }
                         }
@@ -206,12 +234,15 @@ public class MyeloidReportParser {
                         while(matcher.find()) {
                             for(String refName : matcher.group(1).split(";")) {
                                 refName = refName.trim();
-                                Pattern patternInternal = Pattern.compile("(.*), ?((19|20)[0-9][0-9])");
+                                Pattern patternInternal = Pattern.compile("(.*), ?((19|20)[0-9][0-9][a-z]?)");
                                 Matcher matcherInternal = patternInternal.matcher(refName);
                                 if(matcherInternal.matches()) {
                                     for(Reference reference : myeloidCase.references) {
                                         if(reference.refName.startsWith(matcherInternal.group(1).split(" ")[0]) && reference.refName.contains(matcherInternal.group(2))) {
                                             variant.refNos.add(reference.refNo);
+                                            reference.geneHgvscs.add(variant.gene + " " + variant.hgvsc);
+                                            references.getReferenceMapByRefHash().get(reference.getRefHash()).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
+                                            
                                         }
                                     }
                                 }
@@ -222,11 +253,20 @@ public class MyeloidReportParser {
             }
         
         }
-        
-        JAXBContext jc = JAXBContext.newInstance(new Class[] {MyeloidCases.class});
-        Marshaller m = jc.createMarshaller();
-        m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));
-        m.marshal(myeloidCases, System.out);        
+
+        if(args[0].equals("myeloidCases")) {
+            JAXBContext jc = JAXBContext.newInstance(new Class[] {MyeloidCases.class});
+            Marshaller m = jc.createMarshaller();
+            m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));
+            m.marshal(myeloidCases, System.out);
+        }
+
+        if(args[0].equals("references")) {
+            JAXBContext jc = JAXBContext.newInstance(new Class[] {References.class});
+            Marshaller m = jc.createMarshaller();
+            m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));
+            m.marshal(references, System.out);
+        }
         
     }
     
