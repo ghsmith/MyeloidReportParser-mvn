@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 public class UnwrappingBufferedReader extends BufferedReader {
 
     Pattern[] paragraphPatterns = new Pattern[] {
+        Pattern.compile("Note: .*"),
         Pattern.compile("^I\\. .*"),
         Pattern.compile("^II\\. .*"),
         Pattern.compile("^III\\. .*"),

@@ -23,13 +23,32 @@ public class MyeloidReportParser {
 
     public static void main(String[] args) throws IOException, JAXBException {
 
+        int fileNo = 0;
+        
         MyeloidCases myeloidCases = new MyeloidCases();
         References references = new References();
+
+        // Get some cardinality for Excel to chew on...
+        {
+            MyeloidCase myeloidCase = new MyeloidCase();
+            myeloidCases.myeloidCase.add(myeloidCase);
+            myeloidCase.patient = "Template";
+            myeloidCase.diagnoses.add("Diagnosis #1");
+            myeloidCase.diagnoses.add("Diagnosis #2");
+            myeloidCase.notes.add("Note #1");
+            myeloidCase.notes.add("Note #2");
+        }
         
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         String fileName;
         while((fileName = stdIn.readLine()) != null) {
 
+            fileNo++;
+            
+            if(args.length > 0 && args[0] != null && fileNo < new Integer(args[0])) {
+                continue;
+            }
+            
             MyeloidCase myeloidCase = new MyeloidCase();
 
             {
@@ -49,7 +68,7 @@ public class MyeloidReportParser {
                         inPreBlock = false;
                     }
                     if(inPreBlock) {
-                        System.err.println(String.format("%s: %s", fileName, line));
+                        System.err.println(String.format("[%3d] %s: %s", fileNo, fileName, line));
                         if     (line.startsWith("Patient Report")) { section = "demographics"; }
                         else if(line.startsWith("Result:"))        { section = "results"; }
                         else if(line.startsWith("References:"))    { section = "references"; }
@@ -59,6 +78,7 @@ public class MyeloidReportParser {
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.patient = matcher.group(1).trim();
+                                    continue;
                                 }
                             }
                             {
@@ -66,6 +86,7 @@ public class MyeloidReportParser {
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.dob = matcher.group(1).trim();
+                                    continue;
                                 }
                             }
                             {
@@ -73,6 +94,7 @@ public class MyeloidReportParser {
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.gender = matcher.group(1).trim();
+                                    continue;
                                 }
                             }
                             {
@@ -80,13 +102,15 @@ public class MyeloidReportParser {
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.pid = matcher.group(1).trim();
+                                    continue;
                                 }
                             }
                             {
-                                Pattern pattern = Pattern.compile("^Visit Number (FIN): (.*)");
+                                Pattern pattern = Pattern.compile("^Visit Number \\(FIN\\): (.*)");
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.fin = matcher.group(1).trim();
+                                    continue;
                                 }
                             }
                             {
@@ -94,13 +118,53 @@ public class MyeloidReportParser {
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.collectionDate = matcher.group(1).trim();
+                                    continue;
                                 }
                             }
                             {
-                                Pattern pattern = Pattern.compile("^Physician: (.*)");
+                                Pattern pattern = Pattern.compile("^PHYSICIAN: (.*)");
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     myeloidCase.physician = matcher.group(1).trim();
+                                    continue;
+                                }
+                            }
+                            {
+                                Pattern pattern = Pattern.compile("^- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    fileIn.readLine();
+                                    fileIn.readLine();
+                                    line = fileIn.readLine();
+                                    myeloidCase.specimenType = line;
+                                    fileIn.readLine();
+                                    fileIn.readLine();
+                                    continue;
+                                }
+                            }
+                            {
+                                Pattern pattern = Pattern.compile("^Submitted diagnosis: (.*)");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    myeloidCase.diagnoses.add(matcher.group(1).trim());
+                                    continue;
+                                }
+                            }
+                            {
+                                Pattern pattern = Pattern.compile("^interpretation:");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    line = fileIn.readLine();
+                                    myeloidCase.diagnoses.add(line);
+                                    continue;
+                                }
+                            }
+                            {
+                                Pattern pattern = Pattern.compile("^Note: (.*)");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    myeloidCase.notes.add(matcher.group(1).trim());
+                                    continue;
                                 }
                             }
                         }
@@ -109,7 +173,7 @@ public class MyeloidReportParser {
                             else if(line.startsWith("II. Tier 2"))                           { variantCategory = "Tier 2: Unknown significance"; }
                             else if(line.startsWith("III. Single Nucleotide Polymorphisms")) { variantCategory = "SNP with significance"; }
                             {
-                                Pattern pattern = Pattern.compile("^[0-9]+\\. ([^ ]+) (c\\.[^ ]+), (p\\.[^ ]+) \\((NM_[0-9\\.]+)\\) Variant Frequency: <?([0-9\\.]+)%");
+                                Pattern pattern = Pattern.compile("^[0-9]+\\. +([^ ]+) +(c\\.[^ ]+), +(p\\.[^ ]+) +\\((NM_[0-9\\.]+)\\) +Variant Frequency: +<?([0-9\\.]+)%.*");
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     variant = new Variant();
@@ -121,10 +185,59 @@ public class MyeloidReportParser {
                                     variant.hgvsp = matcher.group(3);
                                     variant.transcript = matcher.group(4);
                                     variant.frequency = String.format("%4.1f", new Float(matcher.group(5)));
+                                    continue;
+                                }
+                            }
+                            {   // no comma...
+                                Pattern pattern = Pattern.compile("^[0-9]+\\. +([^ ]+) +(c\\.[^ ]+) +(p\\.[^ ]+) +\\((NM_[0-9\\.]+)\\) +Variant Frequency: +<?([0-9\\.]+)%.*");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    variant = new Variant();
+                                    myeloidCase.variants.add(variant);
+                                    variant.myeloidCase = myeloidCase;
+                                    variant.category = variantCategory;
+                                    variant.gene = matcher.group(1);
+                                    variant.hgvsc = matcher.group(2);
+                                    variant.hgvsp = matcher.group(3);
+                                    variant.transcript = matcher.group(4);
+                                    variant.frequency = String.format("%4.1f", new Float(matcher.group(5)));
+                                    continue;
                                 }
                             }
                             {
-                                Pattern pattern = Pattern.compile("^[0-9]+\\. ([^ ]+) (c\\.[^ ]+) \\((NM_[0-9\\.]+)\\) Variant Frequency: <?([0-9\\.]+)%");
+                                Pattern pattern = Pattern.compile("^[0-9]+\\. +([^ ]+) +(c\\.[^ ]+), +(p\\.[^ ]+) +\\((NM_[0-9\\.]+)\\) +Variant Frequency: Not reported.*");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    variant = new Variant();
+                                    myeloidCase.variants.add(variant);
+                                    variant.myeloidCase = myeloidCase;
+                                    variant.category = variantCategory;
+                                    variant.gene = matcher.group(1);
+                                    variant.hgvsc = matcher.group(2);
+                                    variant.hgvsp = matcher.group(3);
+                                    variant.transcript = matcher.group(4);
+                                    variant.frequency = String.format("%4.1f", new Float(999));
+                                    continue;
+                                }
+                            }
+                            {   // no comma...
+                                Pattern pattern = Pattern.compile("^[0-9]+\\. +([^ ]+) +(c\\.[^ ]+) +(p\\.[^ ]+) +\\((NM_[0-9\\.]+)\\) +Variant Frequency: Not reported.*");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    variant = new Variant();
+                                    myeloidCase.variants.add(variant);
+                                    variant.myeloidCase = myeloidCase;
+                                    variant.category = variantCategory;
+                                    variant.gene = matcher.group(1);
+                                    variant.hgvsc = matcher.group(2);
+                                    variant.hgvsp = matcher.group(3);
+                                    variant.transcript = matcher.group(4);
+                                    variant.frequency = String.format("%4.1f", new Float(999));
+                                    continue;
+                                }
+                            }
+                            {
+                                Pattern pattern = Pattern.compile("^[0-9]+\\. +([^ ]+) +(c\\.[^ ]+) +\\((NM_[0-9\\.]+)\\) +Variant Frequency: +<?([0-9\\.]+)%.*");
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     variant = new Variant();
@@ -135,14 +248,28 @@ public class MyeloidReportParser {
                                     variant.hgvsc = matcher.group(2);
                                     variant.transcript = matcher.group(3);
                                     variant.frequency = String.format("%4.1f", new Float(matcher.group(4)));
+                                    continue;
                                 }
+                            }
+                            {
+                                Pattern pattern = Pattern.compile("(?i)^NONE DETECTED");
+                                Matcher matcher = pattern.matcher(line);
+                                if(matcher.matches()) {
+                                    variant = new Variant();
+                                    myeloidCase.variants.add(variant);
+                                    variant.myeloidCase = myeloidCase;
+                                    variant.category = variantCategory;
+                                    variant.gene = "NONE DETECTED";
+                                    continue;
+                               }
                             }
                             {
                                 Pattern pattern = Pattern.compile("^Interpretation: (.*)");
                                 Matcher matcher = pattern.matcher(line);
                                 if(matcher.matches()) {
                                     variant.interpretation = matcher.group(1);
-                                }
+                                    continue;
+                               }
                             }
                         }
                         if(section.equals("references")) {
@@ -207,42 +334,44 @@ public class MyeloidReportParser {
             // attempt to parse references
             {
                 for(Variant variant : myeloidCase.variants) {
-                    {
-                        Pattern pattern = Pattern.compile(" \\(([0-9\\-, ]*)\\)"); // leading space is an attempt to avoid cytogenetic nomenclature (e.g., inv(16))
-                        Matcher matcher = pattern.matcher(variant.interpretation);
-                        while(matcher.find()) {
-                            for(String refNoRange : matcher.group(1).split(",")) {
-                                refNoRange = refNoRange.trim();
-                                if(refNoRange.contains("-")) {
-                                    for(int refNo = new Integer(refNoRange.split("-")[0]); refNo <= new Integer(refNoRange.split("-")[1]); refNo++) {
-                                        variant.refNos.add(refNo);
-                                        myeloidCase.getReferenceMapByRefNo().get(refNo).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
-                                        references.getReferenceMapByRefHash().get(myeloidCase.getReferenceMapByRefNo().get(refNo).getRefHash()).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
+                    if(variant.interpretation != null) {
+                        {
+                            Pattern pattern = Pattern.compile(" \\(([0-9\\-, ]*)\\)"); // leading space is an attempt to avoid cytogenetic nomenclature (e.g., inv(16))
+                            Matcher matcher = pattern.matcher(variant.interpretation);
+                            while(matcher.find()) {
+                                for(String refNoRange : matcher.group(1).split(",")) {
+                                    refNoRange = refNoRange.trim();
+                                    if(refNoRange.contains("-")) {
+                                        for(int refNo = new Integer(refNoRange.split("-")[0]); refNo <= new Integer(refNoRange.split("-")[1]); refNo++) {
+                                            variant.refNos.add(refNo);
+                                            myeloidCase.getReferenceMapByRefNo().get(refNo).geneHgvscs.add(variant.gene + " " + variant.transcript + ":" + variant.hgvsc);
+                                            references.getReferenceMapByRefHash().get(myeloidCase.getReferenceMapByRefNo().get(refNo).getRefHash()).geneHgvscs.add(variant.gene + " " + variant.transcript + ":" + variant.hgvsc);
+                                        }
                                     }
-                                }
-                                else {
-                                    variant.refNos.add(new Integer(refNoRange));
-                                    myeloidCase.getReferenceMapByRefNo().get(new Integer(refNoRange)).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
-                                    references.getReferenceMapByRefHash().get(myeloidCase.getReferenceMapByRefNo().get(new Integer(refNoRange)).getRefHash()).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
+                                    else {
+                                        variant.refNos.add(new Integer(refNoRange));
+                                        myeloidCase.getReferenceMapByRefNo().get(new Integer(refNoRange)).geneHgvscs.add(variant.gene + " " + variant.transcript + ":" + variant.hgvsc);
+                                        references.getReferenceMapByRefHash().get(myeloidCase.getReferenceMapByRefNo().get(new Integer(refNoRange)).getRefHash()).geneHgvscs.add(variant.gene + " " + variant.transcript + ":" + variant.hgvsc);
+                                    }
                                 }
                             }
                         }
-                    }
-                    {
-                        Pattern pattern = Pattern.compile(" \\((.*?)\\)"); // leading space is an attempt to avoid cytogenetic nomenclature (e.g., inv(16))
-                        Matcher matcher = pattern.matcher(variant.interpretation);
-                        while(matcher.find()) {
-                            for(String refName : matcher.group(1).split(";")) {
-                                refName = refName.trim();
-                                Pattern patternInternal = Pattern.compile("(.*), ?((19|20)[0-9][0-9][a-z]?)");
-                                Matcher matcherInternal = patternInternal.matcher(refName);
-                                if(matcherInternal.matches()) {
-                                    for(Reference reference : myeloidCase.references) {
-                                        if(reference.refName.startsWith(matcherInternal.group(1).split(" ")[0]) && reference.refName.contains(matcherInternal.group(2))) {
-                                            variant.refNos.add(reference.refNo);
-                                            reference.geneHgvscs.add(variant.gene + " " + variant.hgvsc);
-                                            references.getReferenceMapByRefHash().get(reference.getRefHash()).geneHgvscs.add(variant.gene + " " + variant.hgvsc);
-                                            
+                        {
+                            Pattern pattern = Pattern.compile(" \\((.*?)\\)"); // leading space is an attempt to avoid cytogenetic nomenclature (e.g., inv(16))
+                            Matcher matcher = pattern.matcher(variant.interpretation);
+                            while(matcher.find()) {
+                                for(String refName : matcher.group(1).split(";")) {
+                                    refName = refName.trim();
+                                    Pattern patternInternal = Pattern.compile("(.*), ?((19|20)[0-9][0-9][a-z]?)");
+                                    Matcher matcherInternal = patternInternal.matcher(refName);
+                                    if(matcherInternal.matches()) {
+                                        for(Reference reference : myeloidCase.references) {
+                                            if(reference.refName.startsWith(matcherInternal.group(1).split(" ")[0]) && reference.refName.contains(matcherInternal.group(2))) {
+                                                variant.refNos.add(reference.refNo);
+                                                reference.geneHgvscs.add(variant.gene + " " + variant.transcript + ":" + variant.hgvsc);
+                                                references.getReferenceMapByRefHash().get(reference.getRefHash()).geneHgvscs.add(variant.gene + " " + variant.transcript + ":" + variant.hgvsc);
+
+                                            }
                                         }
                                     }
                                 }
@@ -254,14 +383,16 @@ public class MyeloidReportParser {
         
         }
 
-        if(args[0].equals("myeloidCases")) {
+        //if(args[0].equals("myeloidCases")) {
+        {
             JAXBContext jc = JAXBContext.newInstance(new Class[] {MyeloidCases.class});
             Marshaller m = jc.createMarshaller();
             m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));
             m.marshal(myeloidCases, System.out);
         }
 
-        if(args[0].equals("references")) {
+        //if(args[0].equals("references")) {
+        {
             JAXBContext jc = JAXBContext.newInstance(new Class[] {References.class});
             Marshaller m = jc.createMarshaller();
             m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));

@@ -14,14 +14,20 @@ public class Reference {
     public String pmid;
     @XmlElement
     public String refName;
-    //@XmlTransient
-    @XmlElement(name="geneHgvsc", type=String.class)
-    @XmlElementWrapper(name="geneHgvscs")    
+    // for flat...
+    @XmlTransient
+    // ...for flat
+    // for tall...
+    //@XmlElement(name="geneHgvsc", type=String.class)
+    //@XmlElementWrapper(name="geneHgvscs")    
+    // ...for tall
     public SortedSet<String> geneHgvscs = new TreeSet<>();
-    //@XmlAttribute
-    //public String getGeneHgvscList() {
-    //    return geneHgvscs.toString();
-    //}
+    // for flat...
+    @XmlAttribute
+    public String getGeneHgvscList() {
+        return geneHgvscs.toString();
+    }
+    // ...for flat
     @XmlAttribute
     public int getRefHash() {
         return Math.abs(refName.hashCode());

@@ -24,6 +24,14 @@ public class MyeloidCase {
     public String collectionDate;
     @XmlAttribute
     public String physician;
+    @XmlAttribute
+    public String specimenType;
+    @XmlElement(name="diagnosis", type=String.class)
+    @XmlElementWrapper(name="diagnoses")    
+    public List<String> diagnoses = new ArrayList<>();
+    @XmlElement(name="note", type=String.class)
+    @XmlElementWrapper(name="notes")    
+    public List<String> notes = new ArrayList<>();
     @XmlElement(name="variant", type=Variant.class)
     @XmlElementWrapper(name="variants")    
     public List<Variant> variants = new ArrayList<>();

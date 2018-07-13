@@ -24,29 +24,39 @@ public class Variant {
     public String frequency;
     @XmlElement
     public String interpretation;
-    //@XmlTransient
-    @XmlElement(name="refNo", type=Integer.class)
-    @XmlElementWrapper(name="refNos")    
+    // for flat...
+    @XmlTransient
+    // ...for flat
+    // for tall...
+    //@XmlElement(name="refNo", type=Integer.class)
+    //@XmlElementWrapper(name="refNos")    
+    // ...for tall
     public SortedSet<Integer> refNos = new TreeSet<>();
-    //@XmlAttribute
-    //public String getRefNoList() {
-    //    return refNos.toString();
-    //}
-    @XmlElement(name="refHash", type=Integer.class)
-    @XmlElementWrapper(name="refHashes")    
-    public SortedSet<Integer> getRefHashes() {
-        SortedSet<Integer> refHashes = new TreeSet<>();
-        for(Integer refNo : refNos) {
-            refHashes.add(myeloidCase.getReferenceMapByRefNo().get(refNo).hashCode());
-        }
-        return refHashes;
+    // for flat...
+    @XmlAttribute
+    public String getRefNoList() {
+        return refNos.toString();
     }
-    //@XmlAttribute
-    //public String getRefHashList() {
+    // ...for flat
+    // for tall...
+    //@XmlElement(name="refHash", type=Integer.class)
+    //@XmlElementWrapper(name="refHashes")    
+    //public SortedSet<Integer> getRefHashes() {
     //    SortedSet<Integer> refHashes = new TreeSet<>();
     //    for(Integer refNo : refNos) {
     //        refHashes.add(myeloidCase.getReferenceMapByRefNo().get(refNo).hashCode());
     //    }
-    //    return refHashes.toString();
+    //    return refHashes;
     //}
+    // ...for tall
+    // for flat...
+    @XmlAttribute
+    public String getRefHashList() {
+        SortedSet<Integer> refHashes = new TreeSet<>();
+        for(Integer refNo : refNos) {
+            refHashes.add(myeloidCase.getReferenceMapByRefNo().get(refNo).hashCode());
+        }
+        return refHashes.toString();
+    }
+    // ...for flat
 }
