@@ -6,9 +6,16 @@ import edu.emory.mrp.data.Reference;
 import edu.emory.mrp.data.References;
 import edu.emory.mrp.data.Variant;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.xml.bind.JAXBContext;
@@ -21,7 +28,7 @@ import javax.xml.bind.Marshaller;
  */
 public class MyeloidReportParser {
 
-    public static void main(String[] args) throws IOException, JAXBException {
+    public static void main(String[] args) throws IOException, JAXBException, ParseException {
 
         int fileNo = 0;
         
@@ -29,7 +36,7 @@ public class MyeloidReportParser {
         References references = new References();
 
         // Get some cardinality for Excel to chew on...
-        {
+        /*{
             MyeloidCase myeloidCase = new MyeloidCase();
             myeloidCases.myeloidCase.add(myeloidCase);
             myeloidCase.patient = "Template";
@@ -37,7 +44,7 @@ public class MyeloidReportParser {
             myeloidCase.diagnoses.add("Diagnosis #2");
             myeloidCase.notes.add("Note #1");
             myeloidCase.notes.add("Note #2");
-        }
+        }*/
         
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         String fileName;
@@ -383,20 +390,268 @@ public class MyeloidReportParser {
         
         }
 
-        //if(args[0].equals("myeloidCases")) {
-        {
+        /*{
             JAXBContext jc = JAXBContext.newInstance(new Class[] {MyeloidCases.class});
             Marshaller m = jc.createMarshaller();
             m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));
-            m.marshal(myeloidCases, System.out);
+            m.marshal(myeloidCases, new FileOutputStream(new File("myeloid_cases.xml")));
         }
 
-        //if(args[0].equals("references")) {
         {
             JAXBContext jc = JAXBContext.newInstance(new Class[] {References.class});
             Marshaller m = jc.createMarshaller();
             m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, new Boolean(true));
-            m.marshal(references, System.out);
+            m.marshal(references, new FileOutputStream(new File("references.xml")));
+        }*/
+
+        // flat files for Access
+        {
+        
+            class FlatMyeloidCase {
+                public int caseId;
+                public String patient;
+                public String dob;
+                public String gender;
+                public String pid;
+                public String fin;
+                public String collectionDate;
+                public String physician;
+                public String specimenType;
+                public String diagnosis;
+                public String note;
+            }
+            
+            class FlatVariant {
+                public int variantId;
+                public String gene;
+                public String transcript;
+                public String hgvsc;
+                public String hgvsp;
+            }
+
+            class FlatCaseVariant {
+                public int caseVariantId;
+                public int caseId;
+                public int variantId;
+                public String category;
+                public String frequency;
+                public String interpretation;
+            }
+            
+            class FlatReference {
+                public int referenceId;
+                public String reference;
+                public String pmid;
+            }
+
+            class FlatCaseVariantReference {
+                public int caseVariantReferenceId;
+                public int caseVariantId;
+                public int referenceId;
+                public int caseId;
+                public int variantId;
+                public String refNo;
+            }
+
+            
+            SimpleDateFormat sdf1 = new SimpleDateFormat("MM/dd/yyyy");
+            SimpleDateFormat sdf2 = new SimpleDateFormat("MM/dd/yyyy kk:mm");
+
+            Map<Integer, FlatMyeloidCase> flatMyeloidCaseMap = new HashMap<>();
+            Map<Integer, FlatVariant> flatVariantMap = new HashMap<>();
+            Map<Integer, FlatCaseVariant> flatCaseVariantMap = new HashMap<>();
+            Map<Integer, FlatReference> flatReferenceMap = new HashMap<>();
+            Map<Integer, FlatCaseVariantReference> flatCaseVariantReferenceMap = new HashMap<>();
+            
+            for(MyeloidCase myeloidCase : myeloidCases.myeloidCase) {
+                
+                FlatMyeloidCase fmc = new FlatMyeloidCase();
+                fmc.caseId = Math.abs((myeloidCase.patient + myeloidCase.dob + myeloidCase.pid + myeloidCase.fin).hashCode());
+                fmc.patient = myeloidCase.patient;
+                fmc.dob = myeloidCase.dob;
+                fmc.gender = myeloidCase.gender;
+                fmc.pid = myeloidCase.pid;
+                fmc.fin = myeloidCase.fin;
+                fmc.collectionDate = myeloidCase.collectionDate;
+                fmc.physician = myeloidCase.physician;
+                fmc.specimenType = myeloidCase.specimenType;
+                fmc.diagnosis = myeloidCase.diagnoses.isEmpty() ? "" : myeloidCase.diagnoses.get(0);
+                fmc.note = myeloidCase.notes.isEmpty() ? "" : myeloidCase.notes.get(0);
+                flatMyeloidCaseMap.put(fmc.caseId, fmc);
+                
+                for(Variant variant : myeloidCase.variants) {
+                    
+                    int variantId = Math.abs((variant.gene + variant.transcript + variant.hgvsc).hashCode());
+
+                    FlatVariant fv = flatVariantMap.get(variantId);
+                    if(fv == null) {
+                        fv = new FlatVariant();
+                        fv.variantId = variantId;
+                        fv.gene = variant.gene;
+                        fv.transcript = variant.transcript;
+                        fv.hgvsc = variant.hgvsc;
+                        fv.hgvsp = variant.hgvsp;
+                        flatVariantMap.put(fv.variantId, fv);
+                    }
+
+                    FlatCaseVariant fcv = new FlatCaseVariant();
+                    fcv.caseVariantId = Math.abs(("" + fmc.caseId + fv.variantId).hashCode());
+                    fcv.caseId = fmc.caseId;
+                    fcv.variantId = fv.variantId;
+                    fcv.category = variant.category;
+                    fcv.frequency = variant.frequency;
+                    fcv.interpretation = variant.interpretation;
+                    flatCaseVariantMap.put(fcv.caseVariantId, fcv);
+
+                    for(Integer refNo : variant.refNos) {
+                        
+                        Reference reference = myeloidCase.getReferenceMapByRefNo().get(refNo);
+                        
+                        int referenceId = Math.abs(reference.refName.hashCode());
+                        
+                        FlatReference fr = flatReferenceMap.get(referenceId);
+                        if(fr == null) {
+                            fr = new FlatReference();
+                            fr.referenceId = referenceId;
+                            fr.reference = reference.refName;
+                            fr.pmid = reference.pmid;
+                            flatReferenceMap.put(fr.referenceId, fr);
+                        }
+
+                        FlatCaseVariantReference fcvr = new FlatCaseVariantReference();
+                        fcvr.caseVariantReferenceId = Math.abs(("" + fcv.caseVariantId + fr.referenceId).hashCode());
+                        fcvr.caseVariantId = fcv.caseVariantId;
+                        fcvr.referenceId = fr.referenceId;
+                        fcvr.caseId = fmc.caseId;
+                        fcvr.variantId = fv.variantId;
+                        fcvr.refNo = refNo.toString();
+                        flatCaseVariantReferenceMap.put(fcvr.caseVariantReferenceId, fcvr);
+
+                    }
+                    
+                }
+                
+            }
+            
+            {
+                PrintStream f = new PrintStream(new FileOutputStream(new File("myeloid_case.txt")));
+                for(FlatMyeloidCase fmc : flatMyeloidCaseMap.values()) {
+                    String parsedCollectionDate = null;
+                    try {
+                        parsedCollectionDate = fmc.collectionDate == null ? "" : sdf1.format(sdf2.parse(fmc.collectionDate));
+                    }
+                    catch(ParseException e) {
+                        parsedCollectionDate = fmc.collectionDate == null ? "" : sdf1.format(sdf1.parse(fmc.collectionDate));
+                    }
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+                        "caseId",
+                        "patient",
+                        "dob",
+                        "gender",
+                        "pid",
+                        "fin",
+                        "collectionDate",
+                        "physician",
+                        "specimenType",
+                        "diagnosis",
+                        "note"
+                    ));
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+                        fmc.caseId,
+                        fmc.patient == null ? "" : fmc.patient,
+                        fmc.dob == null ? "" : sdf1.format(sdf1.parse(fmc.dob)),
+                        fmc.gender == null ? "" : fmc.gender,
+                        fmc.pid == null ? "" : fmc.pid,
+                        fmc.fin == null ? "" : fmc.fin,
+                        parsedCollectionDate,
+                        fmc.physician == null ? "" : fmc.physician,
+                        fmc.specimenType == null ? "" : fmc.specimenType,
+                        fmc.diagnosis == null ? "" : fmc.diagnosis,
+                        fmc.note == null ? "" : fmc.note
+                    ));
+                }
+            }
+
+            {
+                PrintStream f = new PrintStream(new FileOutputStream(new File("variant.txt")));
+                for(FlatVariant fv : flatVariantMap.values()) {
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s",
+                        "variantId",
+                        "gene",
+                        "transcript",
+                        "hgvsc",
+                        "hgvsp"
+                    ));
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s",
+                        fv.variantId,
+                        fv.gene == null ? "" : fv.gene,
+                        fv.transcript == null ? "" : fv.transcript,
+                        fv.hgvsc == null ? "" : fv.hgvsc,
+                        fv.hgvsp == null ? "" : fv.hgvsp
+                    ));
+                }
+            }
+            
+            {
+                PrintStream f = new PrintStream(new FileOutputStream(new File("case_variant.txt")));
+                for(FlatCaseVariant fcv : flatCaseVariantMap.values()) {
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                        "caseVariantId",
+                        "caseId",
+                        "variantId",
+                        "category",
+                        "frequency",
+                        "interpretation"
+                    ));
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                        fcv.caseVariantId,
+                        fcv.caseId,
+                        fcv.variantId,
+                        fcv.category == null ? "" : fcv.category,
+                        fcv.frequency == null ? "" : fcv.frequency,
+                        fcv.interpretation == null ? "" : fcv.interpretation
+                    ));
+                }
+            }
+            
+            {
+                PrintStream f = new PrintStream(new FileOutputStream(new File("reference.txt")));
+                for(FlatReference fr : flatReferenceMap.values()) {
+                    f.println(String.format("%s\t%s\t%s",
+                        "referenceId",
+                        "reference",
+                        "pmid"
+                    ));
+                    f.println(String.format("%s\t%s\t%s",
+                        fr.referenceId,
+                        fr.reference == null ? "" : fr.reference,
+                        fr.pmid == null ? "" : fr.pmid
+                    ));
+                }
+            }
+
+            {
+                PrintStream f = new PrintStream(new FileOutputStream(new File("case_variant_reference.txt")));
+                for(FlatCaseVariantReference fcvr : flatCaseVariantReferenceMap.values()) {
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                        "caseVariantReferenceId",
+                        "caseVariantId",
+                        "referenceId",
+                        "caseId",
+                        "variantId",
+                        "refNo"
+                    ));
+                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                        fcvr.caseVariantReferenceId,
+                        fcvr.caseVariantId,
+                        fcvr.referenceId,
+                        fcvr.caseId,
+                        fcvr.variantId,
+                        fcvr.refNo == null ? "" : fcvr.refNo
+                    ));
+                }
+            }
+            
         }
         
     }
