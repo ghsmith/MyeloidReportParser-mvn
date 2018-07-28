@@ -467,6 +467,9 @@ public class MyeloidReportParser {
                 
                 FlatMyeloidCase fmc = new FlatMyeloidCase();
                 fmc.caseId = Math.abs((myeloidCase.patient + myeloidCase.dob + myeloidCase.pid + myeloidCase.fin).hashCode());
+                if(flatMyeloidCaseMap.get(fmc.caseId) != null) {
+                    throw new RuntimeException("non-unique hash");
+                }
                 fmc.patient = myeloidCase.patient;
                 fmc.dob = myeloidCase.dob;
                 fmc.gender = myeloidCase.gender;
@@ -493,9 +496,15 @@ public class MyeloidReportParser {
                         fv.hgvsp = variant.hgvsp;
                         flatVariantMap.put(fv.variantId, fv);
                     }
+                    if(!(fv.gene + fv.transcript + fv.hgvsc).equals(variant.gene + variant.transcript + variant.hgvsc)) {
+                        throw new RuntimeException("non-unique hash");
+                    }
 
                     FlatCaseVariant fcv = new FlatCaseVariant();
-                    fcv.caseVariantId = Math.abs(("" + fmc.caseId + fv.variantId).hashCode());
+                    fcv.caseVariantId = Math.abs(("" + fmc.caseId + fv.variantId + variant.category).hashCode());
+                    if(flatCaseVariantMap.get(fcv.caseVariantId) != null) {
+                        throw new RuntimeException("non-unique hash");
+                    }
                     fcv.caseId = fmc.caseId;
                     fcv.variantId = fv.variantId;
                     fcv.category = variant.category;
@@ -517,9 +526,15 @@ public class MyeloidReportParser {
                             fr.pmid = reference.pmid;
                             flatReferenceMap.put(fr.referenceId, fr);
                         }
+                        if(!fr.reference.equals(reference.refName)) {
+                            throw new RuntimeException("non-unique hash");
+                        }
 
                         FlatCaseVariantReference fcvr = new FlatCaseVariantReference();
-                        fcvr.caseVariantReferenceId = Math.abs(("" + fcv.caseVariantId + fr.referenceId).hashCode());
+                        fcvr.caseVariantReferenceId = Math.abs(("" + fcv.caseVariantId + fr.referenceId + reference.refNo).hashCode());
+                        if(flatCaseVariantReferenceMap.get(fcvr.caseVariantReferenceId) != null) {
+                            throw new RuntimeException("non-unique hash");
+                        }
                         fcvr.caseVariantId = fcv.caseVariantId;
                         fcvr.referenceId = fr.referenceId;
                         fcvr.caseId = fmc.caseId;
@@ -535,6 +550,19 @@ public class MyeloidReportParser {
             
             {
                 PrintStream f = new PrintStream(new FileOutputStream(new File("myeloid_case.txt")));
+                f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+                    "caseId",
+                    "patient",
+                    "dob",
+                    "gender",
+                    "pid",
+                    "fin",
+                    "collectionDate",
+                    "physician",
+                    "specimenType",
+                    "diagnosis",
+                    "note"
+                ));
                 for(FlatMyeloidCase fmc : flatMyeloidCaseMap.values()) {
                     String parsedCollectionDate = null;
                     try {
@@ -543,19 +571,6 @@ public class MyeloidReportParser {
                     catch(ParseException e) {
                         parsedCollectionDate = fmc.collectionDate == null ? "" : sdf1.format(sdf1.parse(fmc.collectionDate));
                     }
-                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-                        "caseId",
-                        "patient",
-                        "dob",
-                        "gender",
-                        "pid",
-                        "fin",
-                        "collectionDate",
-                        "physician",
-                        "specimenType",
-                        "diagnosis",
-                        "note"
-                    ));
                     f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
                         fmc.caseId,
                         fmc.patient == null ? "" : fmc.patient,
@@ -574,14 +589,14 @@ public class MyeloidReportParser {
 
             {
                 PrintStream f = new PrintStream(new FileOutputStream(new File("variant.txt")));
+                f.println(String.format("%s\t%s\t%s\t%s\t%s",
+                    "variantId",
+                    "gene",
+                    "transcript",
+                    "hgvsc",
+                    "hgvsp"
+                ));
                 for(FlatVariant fv : flatVariantMap.values()) {
-                    f.println(String.format("%s\t%s\t%s\t%s\t%s",
-                        "variantId",
-                        "gene",
-                        "transcript",
-                        "hgvsc",
-                        "hgvsp"
-                    ));
                     f.println(String.format("%s\t%s\t%s\t%s\t%s",
                         fv.variantId,
                         fv.gene == null ? "" : fv.gene,
@@ -594,15 +609,15 @@ public class MyeloidReportParser {
             
             {
                 PrintStream f = new PrintStream(new FileOutputStream(new File("case_variant.txt")));
+                f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                    "caseVariantId",
+                    "caseId",
+                    "variantId",
+                    "category",
+                    "frequency",
+                    "interpretation"
+                ));
                 for(FlatCaseVariant fcv : flatCaseVariantMap.values()) {
-                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
-                        "caseVariantId",
-                        "caseId",
-                        "variantId",
-                        "category",
-                        "frequency",
-                        "interpretation"
-                    ));
                     f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
                         fcv.caseVariantId,
                         fcv.caseId,
@@ -616,12 +631,12 @@ public class MyeloidReportParser {
             
             {
                 PrintStream f = new PrintStream(new FileOutputStream(new File("reference.txt")));
+                f.println(String.format("%s\t%s\t%s",
+                    "referenceId",
+                    "reference",
+                    "pmid"
+                ));
                 for(FlatReference fr : flatReferenceMap.values()) {
-                    f.println(String.format("%s\t%s\t%s",
-                        "referenceId",
-                        "reference",
-                        "pmid"
-                    ));
                     f.println(String.format("%s\t%s\t%s",
                         fr.referenceId,
                         fr.reference == null ? "" : fr.reference,
@@ -632,15 +647,15 @@ public class MyeloidReportParser {
 
             {
                 PrintStream f = new PrintStream(new FileOutputStream(new File("case_variant_reference.txt")));
+                f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
+                    "caseVariantReferenceId",
+                    "caseVariantId",
+                    "referenceId",
+                    "caseId",
+                    "variantId",
+                    "refNo"
+                ));
                 for(FlatCaseVariantReference fcvr : flatCaseVariantReferenceMap.values()) {
-                    f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
-                        "caseVariantReferenceId",
-                        "caseVariantId",
-                        "referenceId",
-                        "caseId",
-                        "variantId",
-                        "refNo"
-                    ));
                     f.println(String.format("%s\t%s\t%s\t%s\t%s\t%s",
                         fcvr.caseVariantReferenceId,
                         fcvr.caseVariantId,
