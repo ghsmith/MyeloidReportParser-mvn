@@ -41,7 +41,7 @@ public class ReferencePmidConverter {
                                     ReferenceWithSearchPmid reference = dataroot.getReferenceWithSearchPmid().stream().filter((referenceSearch) ->
                                         referenceSearch.getReferenceId().equals(variant.getCaseVariantReference().stream().filter((caseVariantReference) ->
                                             caseVariantReference.getRefNo() == refNoFinal).findFirst().orElse(null).getReferenceId())).findFirst().orElse(null);
-                                    newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + reference.getSearchPmid().trim());
+                                    newRefs.append((newRefs.length() > 0 ? ", " : "PMID: ") + reference.getSearchPmid().trim());
                                 }
                             }
                             else {
@@ -49,7 +49,7 @@ public class ReferencePmidConverter {
                                 ReferenceWithSearchPmid reference = dataroot.getReferenceWithSearchPmid().stream().filter((referenceSearch) ->
                                     referenceSearch.getReferenceId().equals(variant.getCaseVariantReference().stream().filter((caseVariantReference) ->
                                         caseVariantReference.getRefNo() == refNoRangeFinal).findFirst().orElse(null).getReferenceId())).findFirst().orElse(null);
-                                newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + reference.getSearchPmid().trim());
+                                newRefs.append((newRefs.length() > 0 ? ", " : "PMID: ") + reference.getSearchPmid().trim());
                             }
                         }
                         if(newRefs.length() > 0) {
@@ -82,12 +82,12 @@ public class ReferencePmidConverter {
                                     ReferenceWithSearchPmid reference = dataroot.getReferenceWithSearchPmid().stream().filter((referenceSearch) -> referenceSearch.getReferenceId().equals(caseVariantReference.getReferenceId())).findFirst().orElse(null);
                                     if(reference.getReference().startsWith(matcherInternal.group(1).split(" ")[0]) && reference.getReference().contains(matcherInternal.group(2))) {
                                         hit = true;
-                                        newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + reference.getSearchPmid().trim());
+                                        newRefs.append((newRefs.length() > 0 ? ", " : "PMID: ") + reference.getSearchPmid().trim());
                                         break;
                                     }
                                 }
                                 if(!hit) {
-                                    newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + "NONE");
+                                    newRefs.append((newRefs.length() > 0 ? ", " : "PMID: ") + "NONE");
                                 }
                             }
                         }
