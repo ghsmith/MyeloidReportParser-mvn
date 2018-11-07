@@ -20,6 +20,12 @@ public class ReferencePmidConverter {
 
         for(CaseVariant variant : dataroot.getCaseVariant()) {
             if(variant.getInterpretation() != null) {
+                variant.setInterpretation(variant.getInterpretation().replaceAll("-->\\(.*?\\)", ""));
+            }
+        }
+        
+        for(CaseVariant variant : dataroot.getCaseVariant()) {
+            if(variant.getInterpretation() != null) {
                 StringBuffer newInterp = new StringBuffer();
                 int lastStart = 0;
                 {
@@ -35,7 +41,7 @@ public class ReferencePmidConverter {
                                     ReferenceWithSearchPmid reference = dataroot.getReferenceWithSearchPmid().stream().filter((referenceSearch) ->
                                         referenceSearch.getReferenceId().equals(variant.getCaseVariantReference().stream().filter((caseVariantReference) ->
                                             caseVariantReference.getRefNo() == refNoFinal).findFirst().orElse(null).getReferenceId())).findFirst().orElse(null);
-                                    newRefs.append((newRefs.length() > 0 ? "; " : "") + "PMID: " + reference.getSearchPmid());
+                                    newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + reference.getSearchPmid().trim());
                                 }
                             }
                             else {
@@ -43,7 +49,7 @@ public class ReferencePmidConverter {
                                 ReferenceWithSearchPmid reference = dataroot.getReferenceWithSearchPmid().stream().filter((referenceSearch) ->
                                     referenceSearch.getReferenceId().equals(variant.getCaseVariantReference().stream().filter((caseVariantReference) ->
                                         caseVariantReference.getRefNo() == refNoRangeFinal).findFirst().orElse(null).getReferenceId())).findFirst().orElse(null);
-                                newRefs.append((newRefs.length() > 0 ? "; " : "") + "PMID: " + reference.getSearchPmid());
+                                newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + reference.getSearchPmid().trim());
                             }
                         }
                         if(newRefs.length() > 0) {
@@ -71,11 +77,17 @@ public class ReferencePmidConverter {
                             Pattern patternInternal = Pattern.compile("(.*), ?((19|20)[0-9][0-9][a-z]?)");
                             Matcher matcherInternal = patternInternal.matcher(refName);
                             if(matcherInternal.matches()) {
+                                boolean hit = false;
                                 for(CaseVariantReference caseVariantReference : variant.getCaseVariantReference()) {
                                     ReferenceWithSearchPmid reference = dataroot.getReferenceWithSearchPmid().stream().filter((referenceSearch) -> referenceSearch.getReferenceId().equals(caseVariantReference.getReferenceId())).findFirst().orElse(null);
                                     if(reference.getReference().startsWith(matcherInternal.group(1).split(" ")[0]) && reference.getReference().contains(matcherInternal.group(2))) {
-                                        newRefs.append((newRefs.length() > 0 ? "; " : "") + "PMID: " + reference.getSearchPmid());
+                                        hit = true;
+                                        newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + reference.getSearchPmid().trim());
+                                        break;
                                     }
+                                }
+                                if(!hit) {
+                                    newRefs.append((newRefs.length() > 0 ? "; " : "PMID: ") + "NONE");
                                 }
                             }
                         }
